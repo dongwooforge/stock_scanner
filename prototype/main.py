@@ -17,7 +17,8 @@ stock_scanner/
 ├  └── ticker_list.txt
 ├── scanner.py             # 종목 선별 로직 (Strategy 활용)
 ├── strategy.py            # 다양한 투자 전략 모음
-├── backtester.py          # 과거 데이터 검증 로직
+├── backtester.py          # 과거 데이터 검증 로직(매수)
+├── optimizer.py           # 익,손절 최적값 계산(매도)
 ├── requirements.txt       # 사용한 라이브러리 목록 (pandas, yfinance 등)
 └── data/                  # (선택) 수집한 데이터 저장 폴더 (.gitignore 설정 권장)
 
@@ -31,6 +32,9 @@ fetcher.py에서는 list에 있는 종목들의 ohlcv 데이터를 저장
 import os
 from fetcher import get_nasdaq_4h
 from scanner import scan_tickers, generate_report
+from backtester import get_entry_signals
+from optimizer import find_best_exit_settings
+import sys
 
 def load_tickers(file_path):
     """텍스트 파일에서 티커 리스트를 읽어옵니다."""
@@ -39,29 +43,64 @@ def load_tickers(file_path):
         return []
     
     with open(file_path, 'r') as f:
-        # 줄바꿈 제거, 빈 줄 제외, 중복 제거
         tickers = [line.strip().upper() for line in f if line.strip()]
         return sorted(list(set(tickers)))
 
-# main.py 핵심 부분만 발췌
 def main():
     # 1. 티커 로드
     ticker_file = 'ticker_list.txt'
     tickers = load_tickers(ticker_file)
+    total_tickers = len(tickers)
     
-    # 2. Fetcher: 데이터 수집 (하드디스크 업데이트용)
-    print("--- [1/3] 데이터 업데이트 시작 ---")
-    for i, ticker in enumerate(tickers):
-        print(f"[{i+1}/{len(tickers)}] {ticker} 업데이트 중...", end='\r')
-        get_nasdaq_4h(ticker) # 결과값을 변수에 담지 않고 하드 저장만 수행
+    if not tickers:
+        print("수집할 종목이 없습니다. ticker_list.txt를 확인하세요.")
+        return
 
-    # 3. Scanner: 하드디스크의 데이터를 직접 읽어 분석
+    # 2. Fetcher: 데이터 업데이트 (진행률 표시)
+    print(f"--- [1/3] 데이터 업데이트 시작 (총 {total_tickers}개) ---")
+    # for i, ticker in enumerate(tickers):
+    #     progress = (i + 1) / total_tickers * 100
+    #     sys.stdout.write(f"\r진행률: {progress:5.1f}% | [{i+1}/{total_tickers}] {ticker:<6} 업데이트 중...")
+    #     sys.stdout.flush()
+    #     get_nasdaq_4h(ticker)
+
+    # 3. Scanner: 시그널 종목 선별
     print("\n\n--- [2/3] 전략 스캔 시작 ---")
-    # 메모리에 올리지 않고 티커 리스트만 전달
     signals = scan_tickers(tickers)
+    total_signals = len(signals)
 
-    # 4. 리포트
-    generate_report(signals)
+    # 4. Optimizer: 시그널 종목 정밀 분석 및 데이터 바인딩
+    print(f"\n--- [3/3] 종목별 최적화 분석 시작 (대상: {total_signals}개) ---")
+    
+    final_briefing = []
+    
+    for i, s in enumerate(signals):
+        ticker = s['ticker']
+        progress = (i + 1) / total_signals * 100
+        
+        sys.stdout.write(f"\r분석 중: {progress:5.1f}% | [{i+1}/{total_signals}] {ticker:<6} 최적화 계산 중...")
+        sys.stdout.flush()
+        
+        # 과거 진입 시점들 추출
+        entries = get_entry_signals(ticker) 
+        # 최적 익절/손절 값 및 기대 수익률 계산
+        best_set, score = find_best_exit_settings(ticker, entries)
+        
+        if best_set:
+            # 리포트에서 사용할 상세 데이터를 개별 키로 저장
+            s['tp'] = best_set[0] * 100
+            s['sl'] = best_set[1] * 100
+            s['score'] = score * 100
+            s['entry_count'] = len(entries)
+            s['has_opt'] = True
+        else:
+            s['has_opt'] = False
+        
+        final_briefing.append(s)
+
+    # 5. 최종 리포트 출력 (전문 브리핑 형식)
+    print("\n")
+    generate_report(final_briefing)
 
 if __name__ == "__main__":
     main()

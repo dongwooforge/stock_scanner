@@ -41,13 +41,27 @@ def scan_tickers(ticker_list):
     return signals
 
 def generate_report(signals):
-    # 기존과 동일 (결과 출력 로직)
-    print("=" * 50)
-    if not signals:
-        print("현재 시그널이 발생한 종목이 없습니다.")
-    else:
-        print(f"🎯 총 {len(signals)}개의 종목에서 매수 시그널이 발견되었습니다!")
-        print("-" * 50)
-        for s in signals:
-            print(f"▶ [{s['ticker']}] 현재가: {s['price']:.2f} | 발생시간: {s['time']}")
-    print("=" * 50)
+    print("\n" + "Selection Report: Quantitative Strategy Analysis".center(70, "="))
+    
+    for s in signals:
+        ticker = s['ticker']
+        price = s['price']
+        
+        print(f"▶ [{ticker}] 현 시점 기준 매수 시그널이 식별되었습니다.")
+        print(f"   - 현재가: ${price:.2f}")
+        
+        # has_opt 플래그를 확인하여 안전하게 데이터에 접근
+        if s.get('has_opt'):
+            tp = s['tp']
+            sl = s['sl']
+            score = s['score']
+            count = s['entry_count']
+            
+            print(f"   - 과거 {count}회의 동일 패턴을 분석한 결과,")
+            print(f"   - 최적의 대응 가이드는 [익절 {tp:.1f}% / 손절 {sl:.1f}%] 입니다.")
+            print(f"   - 해당 원칙 준수 시 기대 누적 수익률은 약 {score:.1f}%로 시뮬레이션되었습니다.")
+        else:
+            print("   - [주의] 과거 데이터 부족으로 인해 시뮬레이션 결과가 제공되지 않습니다.")
+        
+        print("-" * 70)
+    print("=" * 70 + "\n")

@@ -1,43 +1,55 @@
 import pandas as pd
 import requests
 
-def update_nasdaq100_list():
-    url = 'https://en.wikipedia.org/wiki/Nasdaq-100'
-    
-    # 브라우저인 것처럼 속이는 헤더 추가
+
+def update_combined_ticker_list():
+    """나스닥 100과 S&P 500 리스트를 통합하여 저장합니다."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
+    
+    combined_tickers = set()
 
+    # 1. 나스닥 100 수집
     try:
-        # requests로 먼저 페이지 소스를 가져온 뒤 pandas로 넘깁니다
-        response = requests.get(url, headers=headers)
-        response.raise_for_status() # 200 OK가 아니면 에러 발생
-        
-        # 가져온 HTML 소스에서 테이블 추출
-        tables = pd.read_html(response.text)
-        
-        # 나스닥 100 리스트는 보통 4번째(인덱스 4) 테이블에 있습니다
-        # 위키피디아 구조 변경에 대비해 'Ticker' 컬럼이 있는 테이블을 찾습니다
-        df = None
+        url_ndx = 'https://en.wikipedia.org/wiki/Nasdaq-100'
+        res = requests.get(url_ndx, headers=headers)
+        tables = pd.read_html(res.text)
         for t in tables:
             if 'Ticker' in t.columns:
-                df = t
+                combined_tickers.update(t['Ticker'].tolist())
                 break
-        
-        if df is not None:
-            tickers = df['Ticker'].tolist()
-            
-            # 파일 저장
-            with open('ticker_list.txt', 'w') as f:
-                for ticker in tickers:
-                    f.write(f"{ticker}\n")
-            print(f"성공: {len(tickers)}개 종목이 ticker_list.txt에 저장되었습니다.")
-        else:
-            print("오류: 종목 테이블을 찾을 수 없습니다.")
-
+        print("나스닥 100 수집 완료.")
     except Exception as e:
-        print(f"종목 갱신 실패: {e}")
+        print(f"나스닥 100 수집 실패: {e}")
+
+    # 2. S&P 500 수집 (미국 시장의 심장)
+    try:
+        url_spy = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+        res = requests.get(url_spy, headers=headers)
+        tables = pd.read_html(res.text)
+        for t in tables:
+            # S&P 500은 컬럼명이 'Symbol'인 경우가 많습니다
+            target_col = 'Symbol' if 'Symbol' in t.columns else 'Ticker'
+            if target_col in t.columns:
+                combined_tickers.update(t[target_col].tolist())
+                break
+        print("S&P 500 수집 완료.")
+    except Exception as e:
+        print(f"S&P 500 수집 실패: {e}")
+
+    # 3. 데이터 정제 (점(.)이 포함된 티커를 하이픈(-)으로 변경 - yfinance 호환용)
+    clean_tickers = [str(t).replace('.', '-') for t in combined_tickers if pd.notna(t)]
+    clean_tickers = sorted(list(set(clean_tickers)))
+
+    # 4. 파일 저장
+    with open('ticker_list.txt', 'w') as f:
+        for ticker in clean_tickers:
+            f.write(f"{ticker}\n")
+    
+    print("-" * 50)
+    print(f"🎯 최종 통합 리스트: {len(clean_tickers)}개 종목 저장 완료!")
+    print("-" * 50)
 
 if __name__ == "__main__":
-    update_nasdaq100_list()
+    update_combined_ticker_list()
