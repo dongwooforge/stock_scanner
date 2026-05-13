@@ -13,11 +13,17 @@
 stock_scanner/
 ├── main.py                # 전체 프로세스 실행
 ├── fetcher.py             # 데이터 수집 및 가공 로직
+├── update_tickers.py      # 조건에 맞는 종목 리스트 생성기(예:나스닥 상위 100개 종목)
+├  └── ticker_list.txt
 ├── scanner.py             # 종목 선별 로직 (Strategy 활용)
 ├── strategy.py            # 다양한 투자 전략 모음
 ├── backtester.py          # 과거 데이터 검증 로직
 ├── requirements.txt       # 사용한 라이브러리 목록 (pandas, yfinance 등)
 └── data/                  # (선택) 수집한 데이터 저장 폴더 (.gitignore 설정 권장)
+
+main에서 ticker_list.txt를 가져와서 fetcher.py에게 전달, 
+fetcher.py에서는 list에 있는 종목들의 ohlcv 데이터를 저장
+
 
 """
 
