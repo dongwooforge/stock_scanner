@@ -14,7 +14,7 @@ def apply_strategy(df):
     # 외부 파일의 로직을 읽어옴
     with open(logic_file, "r", encoding="utf-8") as f:
         logic_code = f.read()
-
+        print(logic_code)
     # 로컬 변수 환경에서 로직 실행
     # df 변수가 로직 안에서 수정되도록 전달
     local_vars = {'df': df}

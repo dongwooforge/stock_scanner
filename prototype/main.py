@@ -30,6 +30,7 @@ fetcher.py에서는 list에 있는 종목들의 ohlcv 데이터를 저장
 
 import os
 from fetcher import get_nasdaq_4h
+from scanner import scan_tickers, generate_report
 
 def load_tickers(file_path):
     """텍스트 파일에서 티커 리스트를 읽어옵니다."""
@@ -42,47 +43,25 @@ def load_tickers(file_path):
         tickers = [line.strip().upper() for line in f if line.strip()]
         return sorted(list(set(tickers)))
 
+# main.py 핵심 부분만 발췌
 def main():
-    # 1. 감시할 종목 리스트 불러오기
+    # 1. 티커 로드
     ticker_file = 'ticker_list.txt'
     tickers = load_tickers(ticker_file)
     
-    if not tickers:
-        print("수집할 종목이 없습니다. ticker_list.txt를 확인하세요.")
-        return
-
-    print(f"--- 총 {len(tickers)}개 종목 데이터 수집 시작 ---")
-    
-    all_data = {}
-    failed_tickers = []
-
-    # 2. 루프를 돌며 데이터 수집 (Fetcher 활용)
+    # 2. Fetcher: 데이터 수집 (하드디스크 업데이트용)
+    print("--- [1/3] 데이터 업데이트 시작 ---")
     for i, ticker in enumerate(tickers):
-        try:
-            print(f"[{i+1}/{len(tickers)}] {ticker} 수집 중...", end='\r')
-            df = get_nasdaq_4h(ticker)
-            
-            if df is not None and not df.empty:
-                all_data[ticker] = df
-            else:
-                failed_tickers.append(ticker)
-        except Exception as e:
-            print(f"\n{ticker} 수집 중 오류 발생: {e}")
-            failed_tickers.append(ticker)
+        print(f"[{i+1}/{len(tickers)}] {ticker} 업데이트 중...", end='\r')
+        get_nasdaq_4h(ticker) # 결과값을 변수에 담지 않고 하드 저장만 수행
 
-    print(f"\n\n--- 수집 완료: {len(all_data)}종목 성공 / {len(failed_tickers)}종목 실패 ---")
-    
-    if failed_tickers:
-        print(f"실패 종목: {', '.join(failed_tickers)}")
+    # 3. Scanner: 하드디스크의 데이터를 직접 읽어 분석
+    print("\n\n--- [2/3] 전략 스캔 시작 ---")
+    # 메모리에 올리지 않고 티커 리스트만 전달
+    signals = scan_tickers(tickers)
 
-    # 3. 데이터 확인 (예: 첫 번째 성공 종목의 마지막 데이터)
-    if all_data:
-        first_ticker = list(all_data.keys())[0]
-        print(f"\n[{first_ticker}] 최신 4시간 봉 데이터:")
-        print(all_data[first_ticker].tail(2))
-        
-    return all_data
+    # 4. 리포트
+    generate_report(signals)
 
 if __name__ == "__main__":
-    # 수집된 데이터를 메모리에 유지하거나 분석기로 넘깁니다.
-    scanner_data = main()
+    main()
