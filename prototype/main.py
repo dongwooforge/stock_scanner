@@ -58,11 +58,11 @@ def main():
 
     # 2. Fetcher: 데이터 업데이트 (진행률 표시)
     print(f"--- [1/3] 데이터 업데이트 시작 (총 {total_tickers}개) ---")
-    # for i, ticker in enumerate(tickers):
-    #     progress = (i + 1) / total_tickers * 100
-    #     sys.stdout.write(f"\r진행률: {progress:5.1f}% | [{i+1}/{total_tickers}] {ticker:<6} 업데이트 중...")
-    #     sys.stdout.flush()
-    #     get_nasdaq_4h(ticker)
+    for i, ticker in enumerate(tickers):
+        progress = (i + 1) / total_tickers * 100
+        sys.stdout.write(f"\r진행률: {progress:5.1f}% | [{i+1}/{total_tickers}] {ticker:<6} 업데이트 중...")
+        sys.stdout.flush()
+        get_nasdaq_4h(ticker)
 
     # 3. Scanner: 시그널 종목 선별
     print("\n\n--- [2/3] 전략 스캔 시작 ---")
